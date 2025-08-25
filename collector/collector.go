@@ -45,12 +45,21 @@ type Collector struct {
 	Success  *prometheus.Desc
 	Duration *prometheus.Desc
 	Failure  *prometheus.Desc
+	Counters []*prometheus.Desc
 	Output   *prometheus.Desc
 	target   *config.Target
 	logger   log.Logger
 }
 
 func NewCollector(target *config.Target, logger log.Logger) *Collector {
+	var counters []*prometheus.Desc
+	if target.CountersExpect != nil {
+		counters = make([]*prometheus.Desc, 0, len(target.CountersExpect))
+		for _, counter := range target.CountersExpect {
+			counters = append(counters, prometheus.NewDesc(prometheus.BuildFQName(namespace, "", counter.Name),
+				fmt.Sprintf("Counter for regexp: %s", counter.Regexp), nil, nil))
+		}
+	}
 	return &Collector{
 		Success: prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "success"),
 			"SSH connection was successful", nil, nil),
@@ -58,6 +67,7 @@ func NewCollector(target *config.Target, logger log.Logger) *Collector {
 			"How long the SSH check took in seconds", nil, nil),
 		Failure: prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "failure"),
 			"Indicates a failure", []string{"reason"}, nil),
+		Counters: counters,
 		Output: prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "output"),
 			"The output of the executed command", []string{"output"}, nil),
 		target: target,
@@ -69,6 +79,9 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.Success
 	ch <- c.Duration
 	ch <- c.Failure
+	for _, counter := range c.Counters {
+		ch <- counter
+	}
 	ch <- c.Output
 }
 
@@ -86,6 +99,17 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 			value = 1
 		}
 		ch <- prometheus.MustNewConstMetric(c.Failure, prometheus.GaugeValue, value, reason)
+	}
+	if c.target.CountersExpect != nil && metric.Output != "" {
+		for i, counter := range c.target.CountersExpect {
+			var value float64
+			pattern := regexp.MustCompile(counter.Regexp)
+			matches := pattern.FindAllStringSubmatch(metric.Output, -1)
+			if len(matches) > 0 && len(matches[0]) > 1 {
+				fmt.Sscanf(matches[0][1], "%f", &value)
+			}
+			ch <- prometheus.MustNewConstMetric(c.Counters[i], prometheus.CounterValue, value)
+		}
 	}
 	if c.target.OutputMetric {
 		output := truncateString(metric.Output, c.target.OutputTruncate)

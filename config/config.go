@@ -37,19 +37,25 @@ type SafeConfig struct {
 	C *Config
 }
 
+type CounterExpect struct {
+	Name   string `yaml:"name"`
+	Regexp string `yaml:"regexp"`
+}
+
 type Module struct {
 	ModuleName        string
-	User              string   `yaml:"user"`
-	Password          string   `yaml:"password"`
-	PrivateKey        string   `yaml:"private_key"`
-	Certificate       string   `yaml:"certificate"`
-	KnownHosts        string   `yaml:"known_hosts"`
-	HostKeyAlgorithms []string `yaml:"host_key_algorithms"`
-	Timeout           int      `yaml:"timeout"`
-	Command           string   `yaml:"command"`
-	CommandExpect     string   `yaml:"command_expect"`
-	OutputMetric      bool     `yaml:"output_metric"`
-	OutputTruncate    int      `yaml:"output_truncate"`
+	User              string          `yaml:"user"`
+	Password          string          `yaml:"password"`
+	PrivateKey        string          `yaml:"private_key"`
+	Certificate       string          `yaml:"certificate"`
+	KnownHosts        string          `yaml:"known_hosts"`
+	HostKeyAlgorithms []string        `yaml:"host_key_algorithms"`
+	Timeout           int             `yaml:"timeout"`
+	Command           string          `yaml:"command"`
+	CommandExpect     string          `yaml:"command_expect"`
+	OutputMetric      bool            `yaml:"output_metric"`
+	OutputTruncate    int             `yaml:"output_truncate"`
+	CountersExpect    []CounterExpect `yaml:"counters_expects"`
 }
 
 type Target struct {
@@ -65,6 +71,7 @@ type Target struct {
 	CommandExpect     string
 	OutputMetric      bool
 	OutputTruncate    int
+	CountersExpect    []CounterExpect
 }
 
 func (sc *SafeConfig) ReloadConfig(configFile string) error {
