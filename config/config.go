@@ -37,9 +37,19 @@ type SafeConfig struct {
 	C *Config
 }
 
+type RegexpGroup struct {
+	Group    int                `yaml:"group"`
+	Name     string             `yaml:"name"`
+	ValueMap map[string]float64 `yaml:"value_map"`
+}
+
 type CounterExpect struct {
-	Name   string `yaml:"name"`
-	Regexp string `yaml:"regexp"`
+	Name         string        `yaml:"name"`
+	Type         string        `yaml:"type"`
+	Desc         string        `yaml:"desc"`
+	Regexp       string        `yaml:"regexp"`
+	RegexpLabels []RegexpGroup `yaml:"regexp_labels"`
+	RegexpValue  RegexpGroup   `yaml:"regexp_value"`
 }
 
 type Module struct {
@@ -55,10 +65,13 @@ type Module struct {
 	CommandExpect     string          `yaml:"command_expect"`
 	OutputMetric      bool            `yaml:"output_metric"`
 	OutputTruncate    int             `yaml:"output_truncate"`
-	CountersExpect    []CounterExpect `yaml:"counters_expects"`
+	Mode              string          `yaml:"mode"`
+	ExpectPrompt      string          `yaml:"expect_prompt"`
+	Counters          []CounterExpect `yaml:"counters"`
 }
 
 type Target struct {
+	ModuleName        string
 	Host              string
 	User              string
 	Password          string
@@ -71,7 +84,9 @@ type Target struct {
 	CommandExpect     string
 	OutputMetric      bool
 	OutputTruncate    int
-	CountersExpect    []CounterExpect
+	Mode              string
+	ExpectPrompt      string
+	Counters          []CounterExpect
 }
 
 func (sc *SafeConfig) ReloadConfig(configFile string) error {
@@ -103,6 +118,25 @@ func (sc *SafeConfig) ReloadConfig(configFile string) error {
 		}
 		if module.OutputTruncate == 0 {
 			module.OutputTruncate = *defaultOutputTruncate
+		}
+		if module.Counters != nil {
+			for i := range module.Counters {
+				if module.Counters[i].Type == "" {
+					module.Counters[i].Type = "counter"
+				}
+				if module.Counters[i].Desc == "" {
+					module.Counters[i].Desc = module.Counters[i].Name
+				}
+				if module.Counters[i].RegexpValue.Group == 0 {
+					module.Counters[i].RegexpValue.Group = 1
+				}
+			}
+		}
+		if module.Mode == "" {
+			module.Mode = "shell"
+		}
+		if module.ExpectPrompt == "" {
+			module.ExpectPrompt = ".*[>#]"
 		}
 		c.Modules[key] = module
 	}

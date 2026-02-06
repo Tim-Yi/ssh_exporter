@@ -52,6 +52,55 @@ modules:
     command: /some/command/with/output
     output_metric: true
     output_truncate: 50
+  fetch-counter:
+    user: username
+    password: secret
+    command: uptime
+    counters:
+      - name: "load1"
+        regexp: "load average: ([0-9]+\\.[0-9]+),"
+      - name: "load5"
+        regexp: "load average: [0-9]+\\.[0-9]+, ([0-9]+\\.[0-9]+),"
+      - name: "load15"
+        regexp: "load average: [0-9]+\\.[0-9]+, [0-9]+\\.[0-9]+, ([0-9]+\\.[0-9]+)"
+  expect-opensm-log:
+    user: username
+    password: secret
+    command: "enable;show ib sm log continue"
+    mode: expect_poll
+    timeout: 30
+    counters:
+      - name: "ib_opensm_link_change_total"
+        type: "counter"
+        desc: "IB Link state changes total"
+        regexp: 'osm_spst_rcv_process: Switch (\S+) (.*) port (\d+) changed state from (ACTIVE|DOWN)'
+        regexp_labels:
+          - group: 1
+            name: "guid"
+          - group: 2
+            name: "dev"
+          - group: 3
+            name: "ifindex"
+          - group: 4
+            name: "state"
+        regexp_value:
+          group: -1
+      - name: "ib_opensm_link_state"
+        type: "gauge"
+        desc: "IB Link state"
+        regexp: 'osm_spst_rcv_process: Switch (\S+) (.*) port (\d+) changed state from (ACTIVE|DOWN)'
+        regexp_labels:
+          - group: 1
+            name: "guid"
+          - group: 2
+            name: "dev"
+          - group: 3
+            name: "ifindex"
+        regexp_value:
+          group: 4
+          value_map:
+            ACTIVE: 0
+            DOWN: 1
 ```
 
 Example with curl would query host1 with the password module and host2 with the default module.
@@ -76,7 +125,22 @@ Configuration options for each module:
 * `command_expect` - Optional regular expression of output to expect from the command.
 * `output_metric` - If `true` the exporter will expose the `command` output via `ssh_output{output="<output here>"}` metric.
 * `output_truncate` - Sets the max length for a string in `ssh_output` metric's `output` label. Set to `-1` to disable truncating.
-
+* `mode` - Enhancement for run command in interactive shell
+    * shell       - default mode for run command in non-interactive shell.
+    * expect      - run command in interactive shell, use expect to wait output, and close connection after finished.
+    * expect_poll - run command in interactive shell, use expect to poll output continuously, and keep connection.
+* `expect_prompt` - Optional prompt's regular expression of output to expect in expect/expect_poll mode
+* `counters` - Optional list to parse output from command
+    * name - the prometheus metric name
+    * type - counter or gauge
+    * desc - the prometheus metric description, default to name
+    * regexp - regular expression to match output
+    * regexp_labels - optional list, the match groups of regexp to fill metric labels
+        * group - match group index in regexp, starts from 1
+        * name  - label name
+    * regexp_value - the match group of regexp to fill metric value
+        * group - match group index in regexp, default is 1; if index < 0, set value to a increment counter from 1
+        * value_map - optional map the value string to float
 ## Docker
 
 Example of running the Docker container

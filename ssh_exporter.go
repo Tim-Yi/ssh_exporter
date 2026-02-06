@@ -61,6 +61,7 @@ func metricsHandler(c *config.Config, logger log.Logger) http.HandlerFunc {
 		level.Debug(logger).Log("msg", "Loaded module", "module", module.ModuleName)
 
 		target := &config.Target{
+			ModuleName:        m,
 			Host:              t,
 			User:              module.User,
 			Password:          module.Password,
@@ -73,7 +74,9 @@ func metricsHandler(c *config.Config, logger log.Logger) http.HandlerFunc {
 			CommandExpect:     module.CommandExpect,
 			OutputMetric:      module.OutputMetric,
 			OutputTruncate:    module.OutputTruncate,
-			CountersExpect:    module.CountersExpect,
+			Mode:              module.Mode,
+			ExpectPrompt:      module.ExpectPrompt,
+			Counters:          module.Counters,
 		}
 		sshCollector := collector.NewCollector(target, log.With(logger, "target", target.Host))
 		registry.MustRegister(sshCollector)
